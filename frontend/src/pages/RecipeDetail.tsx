@@ -94,11 +94,11 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
       <div className="page">
         <div className="recipe-page-header">
           <button className="back-button" type="button" onClick={goHome}>
-            ← Домой
+            Домой
           </button>
         </div>
         <main className="content">
-          <p>Просмотр рецепта из API сделаем следующим шагом.</p>
+          <p>Просмотр рецепта будет позже</p>
         </main>
       </div>
     )
@@ -108,7 +108,7 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
     <div className="page">
       <div className="recipe-page-header">
         <button className="back-button" type="button" onClick={goHome}>
-          ← Домой
+          Домой
         </button>
       </div>
 

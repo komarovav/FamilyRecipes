@@ -75,3 +75,76 @@ async def create_recipe(
             for ri in recipe.ingredients
         ],
     )
+
+@router.get("", response_model=list[RecipeOut])
+async def list_recipes(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Recipe)
+        .options(
+            selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient)
+        )
+        .where(Recipe.user_id == current_user.id)
+        .order_by(Recipe.id.desc())
+    )
+    recipes = result.scalars().all()
+
+    return [
+        RecipeOut(
+            id=r.id,
+            title=r.title,
+            description=r.description,
+            cooking_time=r.cooking_time,
+            servings=r.servings,
+            meal_type=r.meal_type,
+            source=r.source,
+            image_url=r.image_url,
+            ingredients=[
+                IngredientOut(
+                    name=ri.ingredient.name,
+                    amount=float(ri.amount) if ri.amount is not None else None,
+                    unit=ri.unit,
+                )
+                for ri in r.ingredients
+            ],
+        )
+        for r in recipes
+    ]
+
+@router.get("/{recipe_id}", response_model=RecipeOut)
+async def get_recipe(
+    recipe_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Recipe)
+        .options(
+            selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient)
+        )
+        .where(Recipe.id == recipe_id, Recipe.user_id == current_user.id)
+    )
+    recipe = result.scalar_one_or_none()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Рецепт не найден")
+
+    return RecipeOut(
+        id=recipe.id,
+        title=recipe.title,
+        description=recipe.description,
+        cooking_time=recipe.cooking_time,
+        servings=recipe.servings,
+        meal_type=recipe.meal_type,
+        source=recipe.source,
+        image_url=recipe.image_url,
+        ingredients=[
+            IngredientOut(
+                name=ri.ingredient.name,
+                amount=float(ri.amount) if ri.amount is not None else None,
+                unit=ri.unit,
+            )
+            for ri in recipe.ingredients
+        ],
+    )

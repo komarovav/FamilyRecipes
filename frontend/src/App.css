@@ -259,7 +259,7 @@ body {
 .recipe-card {
   display: flex;
   flex-direction: column;
-  background: #9b663a;
+  background: #488c42;
   border: 1px solid #e5e5e5;
   border-radius: 12px;
   overflow: hidden;

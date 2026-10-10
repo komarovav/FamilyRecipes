@@ -65,10 +65,16 @@ function Register({ goLogin, goHome }: RegisterProps) {
               type="email"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                e.target.setCustomValidity("");
+                setEmail(e.target.value);
+              }}
+              onInvalid={(e) => {
+              e.currentTarget.setCustomValidity("Введите корректный email");
+              }}
               required
             />
-          </div>
+      </div>
 
           <div className="form-group">
             <label>Пароль</label>

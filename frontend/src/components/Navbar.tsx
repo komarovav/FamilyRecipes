@@ -1,10 +1,8 @@
 import ProfileMenu from './ProfileMenu'
 
-
 type NavbarProps = {
   logout: () => void
 }
-
 
 function Navbar({ logout }: NavbarProps) {
 
@@ -15,7 +13,6 @@ function Navbar({ logout }: NavbarProps) {
         Family Recipes
       </div>
 
-
       <ProfileMenu
         logout={logout}
       />
@@ -23,6 +20,5 @@ function Navbar({ logout }: NavbarProps) {
     </nav>
   )
 }
-
 
 export default Navbar

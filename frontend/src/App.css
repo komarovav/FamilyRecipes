@@ -9,7 +9,7 @@ body {
   color: #515726;
 }
 
-/* ----- Login / Register ----- */
+/* Login / Register*/
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -126,7 +126,7 @@ body {
   text-decoration: underline;
 }
 
-/* ----- Общий каркас ----- */
+/* Общий каркас */
 .page {
   min-height: 100vh;
   background: #fffaf4;
@@ -174,7 +174,7 @@ body {
   color: #515726;
 }
 
-/* ----- Home ----- */
+/* Home */
 .home-toolbar {
   display: flex;
   align-items: center;
@@ -249,7 +249,7 @@ body {
   color: #777;
 }
 
-/* ----- Карточки рецептов ----- */
+/* Карточки рецептов */
 .recipe-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -343,7 +343,7 @@ body {
   font-style: italic;
 }
 
-/* ----- Profile menu ----- */
+/* Профиль */
 .profile-menu {
   position: relative;
 }
@@ -386,7 +386,7 @@ body {
   color: #8b3a3a;
 }
 
-/* ----- Страница рецепта ----- */
+/* Страница рецепта */
 .recipe-page-header {
   display: flex;
   align-items: center;

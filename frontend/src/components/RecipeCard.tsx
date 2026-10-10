@@ -1,53 +1,50 @@
-import type { Recipe } from '../data/recipes'
+import type { Recipe } from "../api/recipes";
 
 type RecipeCardProps = {
-  recipe: Recipe
-  onClick?: (recipe: Recipe) => void
-}
+  recipe: Recipe;
+  onClick?: () => void;
+};
 
 function RecipeCard({ recipe, onClick }: RecipeCardProps) {
   return (
-    <div
-      className="recipe-card"
-      onClick={() => onClick?.(recipe)}
-    >
+    <div className="recipe-card" onClick={onClick}>
       <div className="recipe-card__photo">
-        {recipe.photo ? (
-          <img src={recipe.photo} alt={recipe.title} />
+        {recipe.image_url ? (
+          <img src={recipe.image_url} alt={recipe.title} />
         ) : (
           <div className="recipe-card__photo-placeholder">🍲</div>
         )}
-
-        <span className="recipe-card__category">
-          {recipe.category}
-        </span>
+        {recipe.meal_type ? (
+          <span className="recipe-card__category">{recipe.meal_type}</span>
+        ) : null}
       </div>
 
       <div className="recipe-card__body">
-        <h3 className="recipe-card__title">
-          {recipe.title}
-        </h3>
+        <h3 className="recipe-card__title">{recipe.title}</h3>
 
-        <p className="recipe-card__description">
-          {recipe.description}
-        </p>
+        {recipe.description ? (
+          <p className="recipe-card__description">{recipe.description}</p>
+        ) : null}
 
         <div className="recipe-card__meta">
-          <span className="recipe-card__meta-item">
-            ⏱ {recipe.cookTime} мин
-          </span>
-
-          <span className="recipe-card__meta-item">
-            🍽 {recipe.servings} порц.
-          </span>
+          {recipe.cooking_time != null ? (
+            <span className="recipe-card__meta-item">
+              ⏱ {recipe.cooking_time} мин
+            </span>
+          ) : null}
+          {recipe.servings != null ? (
+            <span className="recipe-card__meta-item">
+              🍽 {recipe.servings} порц.
+            </span>
+          ) : null}
         </div>
 
-        <span className="recipe-card__source">
-          от {recipe.source}
-        </span>
+        {recipe.source ? (
+          <span className="recipe-card__source">от {recipe.source}</span>
+        ) : null}
       </div>
     </div>
-  )
+  );
 }
 
-export default RecipeCard
+export default RecipeCard;

@@ -48,7 +48,50 @@ export async function createRecipe(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.detail || "Не удалось создать рецепт");
+    throw new Error(
+      typeof error.detail === "string"
+        ? error.detail
+        : "Не удалось создать рецепт"
+    );
+  }
+
+  return res.json();
+}
+
+export async function getRecipes(token: string): Promise<Recipe[]> {
+  const res = await fetch(`${API_URL}/recipes`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof error.detail === "string"
+        ? error.detail
+        : "Не удалось загрузить рецепты"
+    );
+  }
+
+  return res.json();
+}
+
+export async function getRecipe(
+  id: number | string,
+  token: string
+): Promise<Recipe> {
+  const res = await fetch(`${API_URL}/recipes/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof error.detail === "string" ? error.detail : "Рецепт не найден"
+    );
   }
 
   return res.json();

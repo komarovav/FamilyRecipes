@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import RecipeCard from "../components/RecipeCard";
 import { useAuth } from "../context/AuthContext";
@@ -9,11 +9,17 @@ type HomeProps = {
   openRecipe: (recipeId: string | null) => void;
 };
 
+const CATEGORIES = ["Все", "Завтрак", "Обед", "Ужин", "Перекус"] as const;
+
 function Home({ logout, openRecipe }: HomeProps) {
   const { token } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<string>("Все");
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -34,6 +40,23 @@ function Home({ logout, openRecipe }: HomeProps) {
     load();
   }, [token]);
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+
+    return recipes.filter((r) => {
+      const matchesCategory =
+        category === "Все" || (r.meal_type || "") === category;
+
+      const matchesSearch =
+        !q ||
+        r.title.toLowerCase().includes(q) ||
+        (r.description || "").toLowerCase().includes(q) ||
+        (r.source || "").toLowerCase().includes(q);
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [recipes, search, category]);
+
   return (
     <div className="page">
       <Navbar logout={logout} />
@@ -42,14 +65,45 @@ function Home({ logout, openRecipe }: HomeProps) {
         <div className="home-toolbar">
           <h1 className="home-toolbar__title">Мои рецепты</h1>
           <div className="home-toolbar__actions">
-            <button className="icon-button" type="button" title="Поиск">
+            <button
+              className="icon-button"
+              type="button"
+              title="Поиск"
+              onClick={() => setShowFilters((v) => !v)}
+            >
               🔍
-            </button>
-            <button className="icon-button" type="button" title="Фильтр">
-              ☰
             </button>
           </div>
         </div>
+
+        {showFilters && (
+          <div className="home-filters">
+            <input
+              className="home-search"
+              type="search"
+              placeholder="Поиск по названию, описанию, источнику..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+
+            <div className="home-categories">
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={
+                    category === c
+                      ? "category-chip category-chip--active"
+                      : "category-chip"
+                  }
+                  onClick={() => setCategory(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <button
           className="add-recipe-button"
@@ -62,9 +116,9 @@ function Home({ logout, openRecipe }: HomeProps) {
         {loading && <p>Загрузка рецептов...</p>}
         {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {!loading && !error && recipes.length > 0 ? (
+        {!loading && !error && filtered.length > 0 ? (
           <div className="recipe-grid">
-            {recipes.map((recipe) => (
+            {filtered.map((recipe) => (
               <RecipeCard
                 key={recipe.id}
                 recipe={recipe}
@@ -80,6 +134,16 @@ function Home({ logout, openRecipe }: HomeProps) {
             <p>Рецептов пока нет.</p>
           </div>
         ) : null}
+
+        {!loading &&
+          !error &&
+          recipes.length > 0 &&
+          filtered.length === 0 && (
+            <div className="home-card">
+              <h2>Ничего не найдено</h2>
+              <p>Попробуйте другой запрос или категорию.</p>
+            </div>
+          )}
       </main>
     </div>
   );

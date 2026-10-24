@@ -1,5 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Recipe } from "../types/recipe";
+import type { Recipe } from "../api/recipes";
 
 type Props = {
   recipe: Recipe;
@@ -11,21 +11,28 @@ export default function RecipeCard({ recipe, onPress }: Props) {
     <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.photo}>
         <Text style={styles.photoPlaceholder}>🍲</Text>
-        <View style={styles.category}>
-          <Text style={styles.categoryText}>{recipe.category}</Text>
-        </View>
+        {!!recipe.meal_type && (
+          <View style={styles.category}>
+            <Text style={styles.categoryText}>{recipe.meal_type}</Text>
+          </View>
+        )}
       </View>
-
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
           {recipe.title}
         </Text>
-        <Text style={styles.description} numberOfLines={2}>
-          {recipe.description}
-        </Text>
+        {!!recipe.description && (
+          <Text style={styles.description} numberOfLines={2}>
+            {recipe.description}
+          </Text>
+        )}
         <View style={styles.meta}>
-          <Text style={styles.metaText}>⏱ {recipe.cookTime} мин</Text>
-          <Text style={styles.metaText}>🍽 {recipe.servings} порц.</Text>
+          {recipe.cooking_time != null && (
+            <Text style={styles.metaText}>⏱ {recipe.cooking_time} мин</Text>
+          )}
+          {recipe.servings != null && (
+            <Text style={styles.metaText}>🍽 {recipe.servings} порц.</Text>
+          )}
         </View>
         {!!recipe.source && (
           <Text style={styles.source}>от {recipe.source}</Text>

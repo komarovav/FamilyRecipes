@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import {
-  createRecipe,
-  getRecipe,
-  updateRecipe,
-  deleteRecipe,
-  getIngredientNames,
+import {createRecipe, getRecipe, updateRecipe, deleteRecipe, getIngredientNames, uploadRecipeImage,
 } from "../api/recipes";
 
 type RecipeDetailProps = {
@@ -25,20 +20,11 @@ type SuggestTarget = {
 } | null;
 
 const CATEGORIES = ["Завтрак", "Обед", "Ужин", "Перекус"];
+const UNITS = ["г", "кг", "мл", "л", "шт", "ч. л.", "ст. л.", "стакан", "щепотка", "по вкусу"];
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SIZE = 5 * 1024 * 1024;
 
-const UNITS = [
-  "г",
-  "кг",
-  "мл",
-  "л",
-  "шт",
-  "ч. л.",
-  "ст. л.",
-  "стакан",
-  "щепотка",
-  "по вкусу",
-];
-
+const onlyDigits = (value: string) => value.replace(/\D/g, "");
 const emptyIngredient = (): IngredientRow => ({
   name: "",
   amount: "",
@@ -55,19 +41,20 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
   const [servings, setServings] = useState("");
   const [source, setSource] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [ingredients, setIngredients] = useState<IngredientRow[]>([
     emptyIngredient(),
   ]);
+  const [ingredientNames, setIngredientNames] = useState<string[]>([]);
+  const [activeSuggest, setActiveSuggest] = useState<SuggestTarget>(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [error, setError] = useState("");
-
-  const [ingredientNames, setIngredientNames] = useState<string[]>([]);
-  const [activeSuggest, setActiveSuggest] = useState<SuggestTarget>(null);
 
   const buildPayload = () => ({
     title: title.trim(),
@@ -76,6 +63,7 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
     servings: servings ? Number(servings) : undefined,
     meal_type: category,
     source: source.trim() || undefined,
+    image_url: imageUrl || undefined,
     ingredients: ingredients
       .filter((i) => i.name.trim())
       .map((i) => ({
@@ -84,6 +72,33 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
         unit: i.unit.trim() || null,
       })),
   });
+
+  const handleImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !token) return;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError("Можно только JPG, PNG или WebP");
+      return;
+    }
+    if (file.size > MAX_SIZE) {
+      setError("Файл больше 5 МБ");
+      return;
+    }
+
+    setError("");
+    setImageUploading(true);
+    try {
+      setImageUrl(await uploadRecipeImage(file, token));
+    } catch (err: any) {
+      setError(err.message || "Ошибка загрузки фото");
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (isNew || !token || !recipeId) {
@@ -100,9 +115,14 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
         setError("");
         const data = await getRecipe(id, tok);
         setTitle(data.title);
+        setImageUrl(data.image_url || "");
         setCategory(data.meal_type || "Завтрак");
-        setCookTime(data.cooking_time != null ? String(data.cooking_time) : "");
-        setServings(data.servings != null ? String(data.servings) : "");
+        setCookTime(
+          data.cooking_time != null ? String(data.cooking_time) : ""
+        );
+        setServings(
+          data.servings != null ? String(data.servings) : ""
+        );
         setSource(data.source || "");
         setDescription(data.description || "");
         setIngredients(
@@ -135,7 +155,9 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
     value: string
   ) => {
     setIngredients((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+      prev.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      )
     );
   };
 
@@ -168,6 +190,7 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
 
   const handleDelete = async () => {
     if (!token || !recipeId) return;
+
     setIsDeleting(true);
     setError("");
     try {
@@ -184,7 +207,11 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
 
   const header = (
     <div className="recipe-page-header">
-      <button className="back-button" type="button" onClick={goHome}>
+      <button
+        className="back-button"
+        type="button"
+        onClick={goHome}
+      >
         ← Домой
       </button>
       {!isNew && (
@@ -227,10 +254,14 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
       className="modal-overlay"
       onClick={() => !isDeleting && setShowDeleteModal(false)}
     >
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-card"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="modal-card__title">Удалить рецепт?</h2>
         <p className="modal-card__text">
-          «{title || "Без названия"}» будет удалён без возможности восстановления.
+          «{title || "Без названия"}» будет удалён без возможности
+          восстановления.
         </p>
         <div className="modal-card__actions">
           <button
@@ -254,6 +285,37 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
     </div>
   ) : null;
 
+  const photoField = (
+    <div className="form-group">
+      <label>Фото</label>
+      {imageUrl && (
+        <div className="recipe-photo-preview">
+          <img src={imageUrl} alt="Превью" />
+          <button
+            type="button"
+            className="ingredient-row__remove"
+            onClick={() => setImageUrl("")}
+            disabled={imageUploading}
+          >
+            Убрать фото
+          </button>
+        </div>
+      )}
+      <label className="file-input-label">
+        {imageUploading ? "Загрузка..." : "Выбрать фото"}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+          onChange={handleImageChange}
+          disabled={imageUploading || isSaving}
+        />
+      </label>
+      {imageUploading && (
+        <p className="recipe-photo-hint">Загрузка...</p>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="page">
@@ -273,18 +335,29 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
       <div className="page">
         {header}
         <main className="content">
-          {error && <div className="recipe-form__error">{error}</div>}
-
+          {error && (
+            <div className="recipe-form__error">{error}</div>
+          )}
           <article className="recipe-view">
             <div className="recipe-view__photo">
-              <span className="recipe-view__photo-icon">🍲</span>
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={title || "Рецепт"}
+                />
+              ) : (
+                <span className="recipe-view__photo-icon">🍲</span>
+              )}
             </div>
             <div className="recipe-view__body">
               {category && (
-                <span className="recipe-view__badge">{category}</span>
+                <span className="recipe-view__badge">
+                  {category}
+                </span>
               )}
-              <h1 className="recipe-view__title">{title || "Без названия"}</h1>
-
+              <h1 className="recipe-view__title">
+                {title || "Без названия"}
+              </h1>
               <div className="recipe-view__meta">
                 {cookTime && (
                   <span className="recipe-view__meta-item">
@@ -297,34 +370,42 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
                   </span>
                 )}
                 {source && (
-                  <span className="recipe-view__meta-item">от {source}</span>
+                  <span className="recipe-view__meta-item">
+                    от {source}
+                  </span>
                 )}
               </div>
-
               <section className="recipe-view__section">
                 <h2>Ингредиенты</h2>
                 {list.length > 0 ? (
                   <ul className="recipe-view__ingredients">
                     {list.map((ing, index) => (
                       <li key={index}>
-                        <span className="recipe-view__ing-name">{ing.name}</span>
+                        <span className="recipe-view__ing-name">
+                          {ing.name}
+                        </span>
                         {(ing.amount || ing.unit) && (
                           <span className="recipe-view__ing-amount">
-                            {[ing.amount, ing.unit].filter(Boolean).join(" ")}
+                            {[ing.amount, ing.unit]
+                              .filter(Boolean)
+                              .join(" ")}
                           </span>
                         )}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="recipe-view__empty">Нет ингредиентов</p>
+                  <p className="recipe-view__empty">
+                    Нет ингредиентов
+                  </p>
                 )}
               </section>
-
               {description && (
                 <section className="recipe-view__section">
                   <h2>Описание</h2>
-                  <p className="recipe-view__description">{description}</p>
+                  <p className="recipe-view__description">
+                    {description}
+                  </p>
                 </section>
               )}
             </div>
@@ -341,13 +422,11 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
       {header}
       <main className="content">
         <div className="recipe-view recipe-view--form">
-          <div className="recipe-view__photo recipe-view__photo--form">
-            <span className="recipe-view__photo-icon">📷</span>
-            <span className="recipe-view__photo-hint">Фото позже</span>
-          </div>
-
+          {photoField}
           <div className="recipe-view__body">
-            {error && <div className="recipe-form__error">{error}</div>}
+            {error && (
+              <div className="recipe-form__error">{error}</div>
+            )}
 
             <div className="form-group">
               <label>Название</label>
@@ -361,34 +440,46 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
 
             <div className="form-group">
               <label>Категория</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
+              <div className="home-categories">
                 {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
+                  <button
+                    key={c}
+                    type="button"
+                    className={
+                      category === c
+                        ? "category-chip category-chip--active"
+                        : "category-chip"
+                    }
+                    onClick={() => setCategory(c)}
+                  >
                     {c}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             <div className="form-row">
               <div className="form-group">
                 <label>Время (мин)</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={cookTime}
-                  onChange={(e) => setCookTime(e.target.value)}
+                  onChange={(e) =>
+                    setCookTime(onlyDigits(e.target.value))
+                  }
                   placeholder="30"
                 />
               </div>
               <div className="form-group">
                 <label>Порции</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={servings}
-                  onChange={(e) => setServings(e.target.value)}
+                  onChange={(e) =>
+                    setServings(onlyDigits(e.target.value))
+                  }
                   placeholder="4"
                 />
               </div>
@@ -410,27 +501,30 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
                 {ingredients.map((ing, index) => {
                   const qName = ing.name.trim().toLowerCase();
                   const qUnit = ing.unit.trim().toLowerCase();
-
                   const nameSuggestions =
                     activeSuggest?.index === index &&
                     activeSuggest.field === "name"
                       ? ingredientNames
-                          .filter((n) => n.toLowerCase().includes(qName))
-                          .filter((n) => n.toLowerCase() !== qName)
+                          .filter(
+                            (n) =>
+                              n.toLowerCase().includes(qName) &&
+                              n.toLowerCase() !== qName
+                          )
                           .slice(0, 6)
                       : [];
-
                   const unitSuggestions =
                     activeSuggest?.index === index &&
                     activeSuggest.field === "unit"
-                      ? UNITS.filter((u) => u.toLowerCase().includes(qUnit)).slice(
-                          0,
-                          6
-                        )
+                      ? UNITS.filter((u) =>
+                          u.toLowerCase().includes(qUnit)
+                        ).slice(0, 6)
                       : [];
 
                   return (
-                    <div className="ingredient-row" key={index}>
+                    <div
+                      className="ingredient-row"
+                      key={index}
+                    >
                       <div className="suggest-wrap">
                         <input
                           type="text"
@@ -438,13 +532,23 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
                           autoComplete="off"
                           placeholder="Название"
                           onChange={(e) =>
-                            updateIngredient(index, "name", e.target.value)
+                            updateIngredient(
+                              index,
+                              "name",
+                              e.target.value
+                            )
                           }
                           onFocus={() =>
-                            setActiveSuggest({ index, field: "name" })
+                            setActiveSuggest({
+                              index,
+                              field: "name",
+                            })
                           }
                           onBlur={() =>
-                            setTimeout(() => setActiveSuggest(null), 150)
+                            setTimeout(
+                              () => setActiveSuggest(null),
+                              150
+                            )
                           }
                         />
                         {nameSuggestions.length > 0 && (
@@ -456,7 +560,11 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
                                 className="suggest-item"
                                 onMouseDown={(e) => {
                                   e.preventDefault();
-                                  updateIngredient(index, "name", n);
+                                  updateIngredient(
+                                    index,
+                                    "name",
+                                    n
+                                  );
                                   setActiveSuggest(null);
                                 }}
                               >
@@ -468,11 +576,16 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
                       </div>
 
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         value={ing.amount}
                         placeholder="Кол-во"
                         onChange={(e) =>
-                          updateIngredient(index, "amount", e.target.value)
+                          updateIngredient(
+                            index,
+                            "amount",
+                            onlyDigits(e.target.value)
+                          )
                         }
                       />
 
@@ -483,13 +596,23 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
                           autoComplete="off"
                           placeholder="Ед."
                           onChange={(e) =>
-                            updateIngredient(index, "unit", e.target.value)
+                            updateIngredient(
+                              index,
+                              "unit",
+                              e.target.value
+                            )
                           }
                           onFocus={() =>
-                            setActiveSuggest({ index, field: "unit" })
+                            setActiveSuggest({
+                              index,
+                              field: "unit",
+                            })
                           }
                           onBlur={() =>
-                            setTimeout(() => setActiveSuggest(null), 150)
+                            setTimeout(
+                              () => setActiveSuggest(null),
+                              150
+                            )
                           }
                         />
                         {unitSuggestions.length > 0 && (
@@ -501,7 +624,11 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
                                 className="suggest-item"
                                 onMouseDown={(e) => {
                                   e.preventDefault();
-                                  updateIngredient(index, "unit", u);
+                                  updateIngredient(
+                                    index,
+                                    "unit",
+                                    u
+                                  );
                                   setActiveSuggest(null);
                                 }}
                               >
@@ -531,7 +658,10 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
                   className="ingredient-row__add"
                   type="button"
                   onClick={() =>
-                    setIngredients((prev) => [...prev, emptyIngredient()])
+                    setIngredients((prev) => [
+                      ...prev,
+                      emptyIngredient(),
+                    ])
                   }
                 >
                   + Добавить ингредиент
@@ -553,7 +683,7 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
               className="add-recipe-button recipe-form__submit"
               type="button"
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || imageUploading}
             >
               {isSaving
                 ? "Сохранение..."
@@ -564,6 +694,7 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
           </div>
         </div>
       </main>
+      {deleteModal}
     </div>
   );
 }

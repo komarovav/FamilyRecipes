@@ -1,5 +1,31 @@
 const API_URL = "http://localhost:8000";
 
+export async function uploadRecipeImage(
+  file: File,
+  token: string
+): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${API_URL}/recipes/upload-image`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof error.detail === "string" ? error.detail : "Не удалось загрузить фото"
+    );
+  }
+
+  const data = await res.json();
+  return data.image_url as string;
+}
+
 export type IngredientInput = {
   name: string;
   amount?: number | null;

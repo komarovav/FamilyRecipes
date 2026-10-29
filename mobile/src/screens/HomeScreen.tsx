@@ -11,6 +11,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import RecipeCard from "../components/RecipeCard";
 import { getRecipes, type Recipe } from "../api/recipes";
+import ProfileMenu from "../components/ProfileMenu";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Props = {
@@ -65,12 +66,10 @@ export default function HomeScreen({ logout, openRecipe }: Props) {
 
   return (
     <SafeAreaView style={styles.page} edges={["top", "left", "right"]}>
-      <View style={styles.navbar}>
-        <Text style={styles.logo}>Family Recipes</Text>
-        <Pressable onPress={logout}>
-          <Text style={styles.navBtn}>{user?.name || "Выйти"} ▾</Text>
-        </Pressable>
-      </View>
+    <View style={styles.navbar}>
+      <Text style={styles.logo}>Family Recipes</Text>
+      <ProfileMenu logout={logout} />
+    </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -164,6 +163,8 @@ const styles = StyleSheet.create({
   flexDirection: "row",
   alignItems: "center",
   justifyContent: "space-between",
+  zIndex: 20,
+  elevation: 20,
 },
   logo: { fontSize: 18, fontWeight: "700", color: "#515726" },
   navBtn: { fontSize: 14, fontWeight: "600", color: "#515726" },

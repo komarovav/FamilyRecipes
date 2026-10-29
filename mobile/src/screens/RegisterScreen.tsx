@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
+  Platform, ScrollView,
 } from "react-native";
 import { register as registerApi, login as loginApi } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
@@ -15,6 +15,10 @@ import { useAuth } from "../context/AuthContext";
 type Props = {
   onGoLogin: () => void;
 };
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
 
 export default function RegisterScreen({ onGoLogin }: Props) {
   const { login } = useAuth();
@@ -26,22 +30,67 @@ export default function RegisterScreen({ onGoLogin }: Props) {
 
   const handleSubmit = async () => {
     setError("");
+
+    if (!name.trim()) {
+      setError("Введите имя");
+      return;
+    }
+    if (!email.trim()) {
+      setError("Введите email");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError("Введите корректный email");
+      return;
+    }
+    if (!password) {
+      setError("Введите пароль");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Пароль должен быть не короче 6 символов");
+      return;
+    }
+
     setLoading(true);
     try {
-      await registerApi({ name, email, password });
-      const data = await loginApi({ email, password });
+      await registerApi({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      });
+      const data = await loginApi({
+        email: email.trim(),
+        password,
+      });
       await login(data.access_token);
     } catch (e: any) {
-      setError(e.message || "Ошибка регистрации");
+      const msg = e?.message || "";
+      if (
+        msg.includes("Не удалось связаться") ||
+        msg.includes("Нет связи") ||
+        msg.includes("network") ||
+        msg === "Failed to fetch" ||
+        e?.name === "TypeError"
+      ) {
+        setError("Сервер недоступен. Проверьте сеть и что бэкенд запущен.");
+      } else {
+        setError(msg || "Ошибка регистрации");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.page}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+<KeyboardAvoidingView
+    style={styles.page}
+    behavior={Platform.OS === "ios" ? "padding" : "height"}
+    keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+  >
+    <ScrollView
+      contentContainerStyle={styles.scroll}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.card}>
         <Text style={styles.title}>Регистрация</Text>
@@ -55,7 +104,10 @@ export default function RegisterScreen({ onGoLogin }: Props) {
           placeholder="Ваше имя"
           placeholderTextColor="#888"
           value={name}
-          onChangeText={setName}
+          onChangeText={(v) => {
+            setError("");
+            setName(v);
+          }}
         />
 
         <Text style={styles.label}>Email</Text>
@@ -64,9 +116,13 @@ export default function RegisterScreen({ onGoLogin }: Props) {
           placeholder="you@example.com"
           placeholderTextColor="#888"
           autoCapitalize="none"
+          autoCorrect={false}
           keyboardType="email-address"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(v) => {
+            setError("");
+            setEmail(v);
+          }}
         />
 
         <Text style={styles.label}>Пароль</Text>
@@ -76,7 +132,10 @@ export default function RegisterScreen({ onGoLogin }: Props) {
           placeholderTextColor="#888"
           secureTextEntry
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(v) => {
+            setError("");
+            setPassword(v);
+          }}
         />
 
         <Pressable
@@ -87,21 +146,30 @@ export default function RegisterScreen({ onGoLogin }: Props) {
           {loading ? (
             <ActivityIndicator color="#515726" />
           ) : (
-            <Text style={styles.buttonText}>Сохранить</Text>
+            <Text style={styles.buttonText}>
+              {loading ? "Создаем аккаунт..." : "Сохранить"}
+            </Text>
           )}
         </Pressable>
 
-        <Pressable onPress={onGoLogin}>
+        <Pressable onPress={onGoLogin} disabled={loading}>
           <Text style={styles.link}>
             Уже есть аккаунт? <Text style={styles.linkBold}>Войти</Text>
           </Text>
         </Pressable>
       </View>
+    </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+  flexGrow: 1,
+  justifyContent: "center",
+  padding: 24,
+  paddingBottom: 40,
+  },
   page: {
     flex: 1,
     backgroundColor: "#fffaf4",

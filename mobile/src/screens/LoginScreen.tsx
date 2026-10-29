@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from "react-native";
 import { login as loginApi } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
@@ -23,24 +24,38 @@ export default function LoginScreen({ onGoRegister }: Props) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const data = await loginApi({ email, password });
-      await login(data.access_token);
-    } catch (e: any) {
-      setError(e.message || "Ошибка входа");
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleSubmit = async () => {
+  setError("");
+
+  const emailTrim = email.trim();
+  if (!emailTrim) {
+    setError("Введите email");
+    return;
+  }
+  if (!password) {
+    setError("Введите пароль");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const data = await loginApi({ email: emailTrim, password });
+    await login(data.access_token);
+  } catch (e: any) {
+    setError(e.message || "Ошибка входа");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <KeyboardAvoidingView
       style={styles.page}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <ScrollView
+      contentContainerStyle={styles.scroll}
+      keyboardShouldPersistTaps="handled">
       <View style={styles.card}>
         <Text style={styles.title}>С возвращением!</Text>
         <Text style={styles.subtitle}>Войдите в свой аккаунт</Text>
@@ -86,6 +101,7 @@ export default function LoginScreen({ onGoRegister }: Props) {
           </Text>
         </Pressable>
       </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -96,6 +112,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#fffaf4",
     justifyContent: "center",
     padding: 24,
+  },
+  scroll: {
+  flexGrow: 1,
+  justifyContent: "center",
+  padding: 24,
+  paddingBottom: 40,
   },
   card: {
     backgroundColor: "#f4f4f1",

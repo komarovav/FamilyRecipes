@@ -1,4 +1,4 @@
-const API_URL = "http://10.120.159.241:8000"; 
+const API_URL = "http://10.120.159.241:8000";
 
 export type LoginData = {
   email: string;
@@ -22,72 +22,61 @@ export type TokenResponse = {
   token_type: string;
 };
 
-export async function login(data: LoginData): Promise<TokenResponse> {
-  const url = `${API_URL}/auth/login`;
-  const body = `username=${encodeURIComponent(data.email)}&password=${encodeURIComponent(data.password)}`;
-
-  console.log("LOGIN URL", url);
-
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      body,
-    });
-  } catch (e: any) {
-    console.log("LOGIN FETCH ERROR", e?.message);
-    throw new Error("Нет связи с сервером: " + (e?.message || "network"));
+function formatDetail(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((e: any) => (typeof e?.msg === "string" ? e.msg : ""))
+      .filter(Boolean)
+      .join(". ");
   }
+  return "";
+}
 
-  const text = await res.text();
-  console.log("LOGIN STATUS", res.status);
-  console.log("LOGIN BODY", text);
-
-  let json: any = {};
+async function request(url: string, init: RequestInit): Promise<Response> {
   try {
-    json = text ? JSON.parse(text) : {};
+    return await fetch(url, init);
   } catch {
-    throw new Error(`Ответ не JSON (${res.status}): ${text.slice(0, 80)}`);
+    throw new Error("Не удалось связаться с сервером. Попробуйте позже");
   }
+}
 
-  if (!res.ok) {
-    const detail = json.detail;
-    const message =
-      typeof detail === "string"
-        ? detail
-        : "Ошибка входа: " + res.status;
-    throw new Error(message);
-  }
+async function throwApiError(res: Response, fallback: string): Promise<never> {
+  const error = await res.json().catch(() => ({}));
+  throw new Error(formatDetail(error?.detail) || fallback);
+}
 
-  if (!json.access_token) {
-    throw new Error("Нет access_token в ответе: " + text.slice(0, 100));
-  }
+export async function login(data: LoginData): Promise<TokenResponse> {
+  const formData = new URLSearchParams();
+  formData.append("username", data.email);
+  formData.append("password", data.password);
 
-  return json;
+  const res = await request(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: formData,
+  });
+
+  if (!res.ok) await throwApiError(res, "Неверный email или пароль");
+  return res.json();
 }
 
 export async function register(data: RegisterData): Promise<User> {
-  const res = await fetch(`${API_URL}/auth/register`, {
+  const res = await request(`${API_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.detail || "Ошибка регистрации");
-  }
-
+  if (!res.ok) await throwApiError(res, "Ошибка регистрации");
   return res.json();
 }
 
 export async function getMe(token: string): Promise<User> {
   const res = await fetch(`${API_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
 
   if (!res.ok) {
@@ -95,4 +84,18 @@ export async function getMe(token: string): Promise<User> {
   }
 
   return res.json();
+}
+
+export async function deleteAccount(token: string): Promise<void> {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || "Не удалось удалить аккаунт");
+  }
 }

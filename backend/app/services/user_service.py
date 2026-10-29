@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..repositories.user import UserRepository
 from ..services.auth_service import hash_password, verify_password, create_access_token
 from ..schemas import UserCreate, UserLogin
+from ..services.storage_service import delete_user_images       
 
 
 class UserService:
@@ -33,4 +34,9 @@ class UserService:
         return {"access_token": token, "token_type": "bearer"}
 
     async def delete_account(self, user) -> None:
+        user_id = user.id
         await self.users.delete(user)
+        try:
+            delete_user_images(user_id)
+        except Exception:
+            pass

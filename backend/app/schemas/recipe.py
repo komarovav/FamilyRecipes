@@ -21,7 +21,7 @@ class RecipeCreate(BaseModel):
     servings: Optional[int] = None
     meal_type: Optional[str] = None
     source: Optional[str] = None
-    image_url: Optional[str] = None
+    image_url: str | None = None
     ingredients: list[IngredientInput] = []
 
 

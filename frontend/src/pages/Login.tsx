@@ -25,8 +25,13 @@ function Login({ goHome, goRegister }: LoginProps) {
       await login(data.access_token);
       goHome();
     } catch (err: any) {
-      setError(err.message || "Ошибка входа");
-    } finally {
+      const msg = err?.message || "";
+      if (msg === "Failed to fetch" || err?.name === "TypeError") {
+        setError("Сервер недоступен. Проверьте, что бэкенд запущен.");
+      } else {
+        setError(msg || "Ошибка входа");
+      }
+}finally {
       setIsLoading(false);
     }
   };

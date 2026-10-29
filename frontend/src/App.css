@@ -454,10 +454,12 @@ body {
 .form-row {
   display: flex;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .form-row .form-group {
   flex: 1;
+  min-width: 120px;
 }
 
 .ingredients-list {
@@ -705,6 +707,19 @@ body {
 
 .recipe-view--form .form-group:first-child {
   padding-top: 24px;
+}
+
+.recipe-view--form .form-row .form-group:first-child {
+  padding-top: 0;
+}
+
+.recipe-view--form .form-row {
+  padding: 0;
+  align-items: flex-start;
+}
+
+.recipe-view--form .form-row .form-group {
+  padding: 0;
 }
 
 .recipe-view--form .form-group input,

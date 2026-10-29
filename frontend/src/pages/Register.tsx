@@ -83,6 +83,14 @@ function Register({ goLogin, goHome }: RegisterProps) {
               placeholder="Пароль (минимум 6 символов)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onInvalid={(e) => {
+              const el = e.currentTarget;
+              if (el.validity.valueMissing) {
+                el.setCustomValidity("Введите пароль");
+              } else if (el.validity.tooShort) {
+              el.setCustomValidity("Пароль должен быть не короче 6 символов");
+            }
+          }}
               required
               minLength={6}
             />

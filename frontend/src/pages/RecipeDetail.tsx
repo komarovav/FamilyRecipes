@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import {createRecipe, getRecipe, updateRecipe, deleteRecipe, getIngredientNames, uploadRecipeImage,
+import {
+  createRecipe,
+  getRecipe,
+  updateRecipe,
+  deleteRecipe,
+  getIngredientNames,
+  uploadRecipeImage,
 } from "../api/recipes";
 
 type RecipeDetailProps = {
@@ -41,7 +47,12 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
   const [servings, setServings] = useState("");
   const [source, setSource] = useState("");
   const [description, setDescription] = useState("");
+
   const [imageUrl, setImageUrl] = useState("");
+  const [savedImageUrl, setSavedImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+
   const [ingredients, setIngredients] = useState<IngredientRow[]>([
     emptyIngredient(),
   ]);
@@ -51,34 +62,31 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [imageUploading, setImageUploading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [error, setError] = useState("");
 
-  const buildPayload = () => ({
-    title: title.trim(),
-    description: description.trim() || undefined,
-    cooking_time: cookTime ? Number(cookTime) : undefined,
-    servings: servings ? Number(servings) : undefined,
-    meal_type: category,
-    source: source.trim() || undefined,
-    image_url: imageUrl || undefined,
-    ingredients: ingredients
-      .filter((i) => i.name.trim())
-      .map((i) => ({
-        name: i.name.trim(),
-        amount: i.amount ? Number(i.amount) : null,
-        unit: i.unit.trim() || null,
-      })),
-  });
+const buildPayload = (finalImageUrl: string) => ({
+  title: title.trim(),
+  description: description.trim() || undefined,
+  cooking_time: cookTime ? Number(cookTime) : undefined,
+  servings: servings ? Number(servings) : undefined,
+  meal_type: category,
+  source: source.trim() || undefined,
+  image_url: finalImageUrl ? finalImageUrl : null,
+  ingredients: ingredients
+    .filter((i) => i.name.trim())
+    .map((i) => ({
+      name: i.name.trim(),
+      amount: i.amount ? Number(i.amount) : null,
+      unit: i.unit.trim() || null,
+    })),
+});
 
-  const handleImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || !token) return;
+    if (!file) return;
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError("Можно только JPG, PNG или WebP");
@@ -90,14 +98,22 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
     }
 
     setError("");
-    setImageUploading(true);
-    try {
-      setImageUrl(await uploadRecipeImage(file, token));
-    } catch (err: any) {
-      setError(err.message || "Ошибка загрузки фото");
-    } finally {
-      setImageUploading(false);
-    }
+    setImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleRemovePhoto = () => {
+    setImageFile(null);
+    setPreviewUrl("");
+    setImageUrl("");
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setImageFile(null);
+    setPreviewUrl("");
+    setImageUrl(savedImageUrl);
+    setError("");
   };
 
   useEffect(() => {
@@ -116,6 +132,7 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
         const data = await getRecipe(id, tok);
         setTitle(data.title);
         setImageUrl(data.image_url || "");
+        setSavedImageUrl(data.image_url || "");
         setCategory(data.meal_type || "Завтрак");
         setCookTime(
           data.cooking_time != null ? String(data.cooking_time) : ""
@@ -149,6 +166,12 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
       .catch(() => setIngredientNames([]));
   }, [token, isNew, isEditing]);
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const updateIngredient = (
     index: number,
     field: keyof IngredientRow,
@@ -174,11 +197,20 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
     setError("");
     setIsSaving(true);
     try {
+      let finalImageUrl = imageUrl;
+      if (imageFile) {
+        finalImageUrl = await uploadRecipeImage(imageFile, token);
+      }
+
       if (isNew) {
-        await createRecipe(buildPayload(), token);
+        await createRecipe(buildPayload(finalImageUrl), token);
         goHome();
       } else if (recipeId) {
-        await updateRecipe(recipeId, buildPayload(), token);
+        await updateRecipe(recipeId, buildPayload(finalImageUrl), token);
+        setImageUrl(finalImageUrl);
+        setSavedImageUrl(finalImageUrl);
+        setImageFile(null);
+        setPreviewUrl("");
         setIsEditing(false);
       }
     } catch (err: any) {
@@ -239,7 +271,8 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
             <button
               className="back-button"
               type="button"
-              onClick={() => setIsEditing(false)}
+              onClick={handleCancelEdit}
+              disabled={isSaving}
             >
               Отмена
             </button>
@@ -285,34 +318,33 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
     </div>
   ) : null;
 
+  const shownPhoto = previewUrl || imageUrl;
+
   const photoField = (
     <div className="form-group">
       <label>Фото</label>
-      {imageUrl && (
+      {shownPhoto && (
         <div className="recipe-photo-preview">
-          <img src={imageUrl} alt="Превью" />
+          <img src={shownPhoto} alt="Превью" />
           <button
             type="button"
             className="ingredient-row__remove"
-            onClick={() => setImageUrl("")}
-            disabled={imageUploading}
+            onClick={handleRemovePhoto}
+            disabled={isSaving}
           >
             Убрать фото
           </button>
         </div>
       )}
       <label className="file-input-label">
-        {imageUploading ? "Загрузка..." : "Выбрать фото"}
+        Выбрать фото
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
           onChange={handleImageChange}
-          disabled={imageUploading || isSaving}
+          disabled={isSaving}
         />
       </label>
-      {imageUploading && (
-        <p className="recipe-photo-hint">Загрузка...</p>
-      )}
     </div>
   );
 
@@ -683,7 +715,7 @@ function RecipeDetail({ recipeId, goHome }: RecipeDetailProps) {
               className="add-recipe-button recipe-form__submit"
               type="button"
               onClick={handleSave}
-              disabled={isSaving || imageUploading}
+              disabled={isSaving}
             >
               {isSaving
                 ? "Сохранение..."

@@ -1,11 +1,20 @@
+# Web
 fastapi
 uvicorn[standard]
-sqlalchemy
+
+# DB
+sqlalchemy[asyncio]
 asyncpg
 psycopg2-binary
+
+# Auth
 passlib[bcrypt]
 bcrypt==4.0.1
 python-jose[cryptography]
+
+# Validation / settings / forms
 pydantic-settings
 python-multipart
 email-validator
+python-dotenv
+boto3
